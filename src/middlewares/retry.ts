@@ -1,81 +1,81 @@
-import type { ConfiguredMiddleware, WretchOptions } from "../types.js"
+import type {ConfiguredMiddleware, WretchOption} from '../type'
 
 /* Types */
 
 export type DelayRampFunction = (delay: number, nbOfAttempts: number) => number
 export type UntilFunction = (
-  response?: Response,
-  error?: Error
+    response?: Response,
+    error?: Error
 ) => boolean | Promise<boolean>
 export type OnRetryFunctionResponse =
-  | { url?: string; options?: WretchOptions }
-  | undefined
+    | {url?: string; options?: WretchOption}
+    | undefined
 export type OnRetryFunction = (args: {
-  response?: Response
-  error?: Error
-  url: string
-  attempt: number
-  options: WretchOptions
+    response?: Response
+    error?: Error
+    url: string
+    attempt: number
+    options: WretchOption
 }) => void | OnRetryFunctionResponse | Promise<OnRetryFunctionResponse>
-export type SkipFunction = (url: string, opts: WretchOptions) => boolean
+export type SkipFunction = (url: string, opts: WretchOption) => boolean
 export type RetryOptions = {
-  /**
-   * The timer between each attempt in milliseconds.
-   *
-   * _Default: `500`_
-   */
-  delayTimer?: number
-  /**
-   * The custom function that is used to calculate the actual delay based on the the timer & the number of attemps.
-   *
-   * _Default: `delay * nbOfAttemps`_
-   */
-  delayRamp?: DelayRampFunction
-  /**
-   * The maximum number of retries before resolving the promise with the last error. Specifying 0 means infinite retries.
-   *
-   * _Default: `10`_
-   */
-  maxAttempts?: number
-  /**
-   * The request will be retried until that condition is satisfied.
-   *
-   * _Default: `response && (response.ok || (response.status >= 400 && response.status < 500))`_
-   */
-  until?: UntilFunction
-  /**
-   * Callback that will get executed before retrying the request. If this function returns an object having url and/or options properties, they will override existing values in the retried request.
-   *
-   * The callback receives an object with: `response`, `error`, `url`, `attempt` (current attempt number, starting at 1), and `options`.
-   *
-   * _Default: `undefined`_
-   */
-  onRetry?: OnRetryFunction
-  /**
-   * If true, will retry the request if a network error was thrown. Will also provide an 'error' argument to the `onRetry` and `until` methods.
-   *
-   * _Default: `false`_
-   */
-  retryOnNetworkError?: boolean
-  /**
-   * If true, the request will be resolved with the latest response instead of rejected with an error.
-   *
-   * _Default: `false`_
-   */
-  resolveWithLatestResponse?: boolean
-  /**
-   * If skip returns true, the request will not be retried.
-   *
-   * Example:
-   * ```js
-   * (url, options) => (
-   *    options.method !== "GET"
-   * )
-   * ```
-   *
-   * _Default: `undefined`_
-   */
-  skip?: SkipFunction
+    /**
+     * The timer between each attempt in milliseconds.
+     *
+     * _Default: `500`_
+     */
+    delayTimer?: number
+    /**
+     * The custom function that is used to calculate the actual delay based on the the timer & the number of attemps.
+     *
+     * _Default: `delay * nbOfAttemps`_
+     */
+    delayRamp?: DelayRampFunction
+    /**
+     * The maximum number of retries before resolving the promise with the last error. Specifying 0 means infinite retries.
+     *
+     * _Default: `10`_
+     */
+    maxAttempts?: number
+    /**
+     * The request will be retried until that condition is satisfied.
+     *
+     * _Default: `response && (response.ok || (response.status >= 400 && response.status < 500))`_
+     */
+    until?: UntilFunction
+    /**
+     * Callback that will get executed before retrying the request. If this function returns an object having url and/or options properties, they will override existing values in the retried request.
+     *
+     * The callback receives an object with: `response`, `error`, `url`, `attempt` (current attempt number, starting at 1), and `options`.
+     *
+     * _Default: `undefined`_
+     */
+    onRetry?: OnRetryFunction
+    /**
+     * If true, will retry the request if a network error was thrown. Will also provide an 'error' argument to the `onRetry` and `until` methods.
+     *
+     * _Default: `false`_
+     */
+    retryOnNetworkError?: boolean
+    /**
+     * If true, the request will be resolved with the latest response instead of rejected with an error.
+     *
+     * _Default: `false`_
+     */
+    resolveWithLatestResponse?: boolean
+    /**
+     * If skip returns true, the request will not be retried.
+     *
+     * Example:
+     * ```js
+     * (url, options) => (
+     *    options.method !== "GET"
+     * )
+     * ```
+     *
+     * _Default: `undefined`_
+     */
+    skip?: SkipFunction
 }
 
 /**
@@ -124,87 +124,87 @@ export type RetryMiddleware = (options?: RetryOptions) => ConfiguredMiddleware
 /* Defaults */
 
 const defaultDelayRamp: DelayRampFunction = (delay, nbOfAttempts) =>
-  delay * nbOfAttempts
+    delay * nbOfAttempts
 const defaultUntil: UntilFunction = response =>
-  response && (response.ok || (response.status >= 400 && response.status < 500))
+    response && (response.ok || (response.status >= 400 && response.status < 500))
 
 export const retry: RetryMiddleware = ({
-  delayTimer = 500,
-  delayRamp = defaultDelayRamp,
-  maxAttempts = 10,
-  until = defaultUntil,
-  onRetry = null,
-  retryOnNetworkError = false,
-  resolveWithLatestResponse = false,
-  skip,
-} = {}) => {
-  return next => (url, opts) => {
-    let attempts = 0
+                                           delayTimer = 500,
+                                           delayRamp = defaultDelayRamp,
+                                           maxAttempts = 10,
+                                           until = defaultUntil,
+                                           onRetry = null,
+                                           retryOnNetworkError = false,
+                                           resolveWithLatestResponse = false,
+                                           skip
+                                       } = {}) => {
+    return next => (url, opts) => {
+        let attempts = 0
 
-    if (skip && skip(url, opts)) {
-      return next(url, opts)
-    }
-
-    const checkStatus = (response?: Response, error?: Error) => {
-      return Promise.resolve(until(response, error)).then(done => {
-        // If the response is not suitable
-        if (!done) {
-          attempts++
-
-          if (!maxAttempts || attempts <= maxAttempts) {
-            // We need to recurse until we have a correct response and chain the checks
-            return new Promise(resolve => {
-              const delay = delayRamp(delayTimer, attempts)
-              setTimeout(() => {
-                if (typeof onRetry === "function") {
-                  Promise.resolve(
-                    onRetry({
-                      response,
-                      error,
-                      url,
-                      attempt: attempts,
-                      options: opts,
-                    })
-                  ).then((values = {}) => {
-                    resolve(
-                      next(
-                        (values && values.url) ?? url,
-                        (values && values.options) ?? opts
-                      )
-                    )
-                  })
-                } else {
-                  resolve(next(url, opts))
-                }
-              }, delay)
-            })
-              .then(checkStatus)
-              .catch(error => {
-                if (!retryOnNetworkError) throw error
-                return checkStatus(null, error)
-              })
-          } else {
-            return !!response && resolveWithLatestResponse
-              ? response
-              : Promise.reject(
-                error || new Error("Number of attempts exceeded.")
-              )
-          }
+        if (skip && skip(url, opts)) {
+            return next(url, opts)
         }
 
-        return !!response && resolveWithLatestResponse
-          ? response
-          : error
-            ? Promise.reject(error)
-            : response
-      })
-    }
+        const checkStatus = (response?: Response, error?: Error) => {
+            return Promise.resolve(until(response, error)).then(done => {
+                // If the response is not suitable
+                if (!done) {
+                    attempts++
 
-    return next(url, opts)
-      .then(checkStatus)
-      .catch(error => {
-        if (!retryOnNetworkError) throw error
-        return checkStatus(null, error)
-      })
-  }
+                    if (!maxAttempts || attempts <= maxAttempts) {
+                        // We need to recurse until we have a correct response and chain the checks
+                        return new Promise(resolve => {
+                            const delay = delayRamp(delayTimer, attempts)
+                            setTimeout(() => {
+                                if (typeof onRetry === 'function') {
+                                    Promise.resolve(
+                                        onRetry({
+                                            response,
+                                            error,
+                                            url,
+                                            attempt: attempts,
+                                            options: opts
+                                        })
+                                    ).then((values = {}) => {
+                                        resolve(
+                                            next(
+                                                (values && values.url) ?? url,
+                                                (values && values.options) ?? opts
+                                            )
+                                        )
+                                    })
+                                } else {
+                                    resolve(next(url, opts))
+                                }
+                            }, delay)
+                        })
+                            .then(checkStatus)
+                            .catch(error => {
+                                if (!retryOnNetworkError) throw error
+                                return checkStatus(null, error)
+                            })
+                    } else {
+                        return !!response && resolveWithLatestResponse
+                            ? response
+                            : Promise.reject(
+                                error || new Error('Number of attempts exceeded.')
+                            )
+                    }
+                }
+
+                return !!response && resolveWithLatestResponse
+                    ? response
+                    : error
+                        ? Promise.reject(error)
+                        : response
+            })
+        }
+
+        return next(url, opts)
+            .then(checkStatus)
+            .catch(error => {
+                if (!retryOnNetworkError) throw error
+                return checkStatus(null, error)
+            })
+    }
 }

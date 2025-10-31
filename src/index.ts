@@ -1,20 +1,20 @@
-import { core } from "./core.js"
-import { WretchError } from "./resolver.js"
-import type { Wretch, WretchOptions } from "./types.js"
+import {core} from './core.js'
+import {WretchError} from './resolver.js'
+import type {Wretch, WretchOption} from './type'
 
 export type {
-  Wretch,
-  ConfiguredMiddleware,
-  FetchLike,
-  Middleware,
-  WretchResponseChain,
-  WretchOptions,
-  WretchError,
-  WretchErrorCallback,
-  WretchResponse,
-  WretchDeferredCallback,
-  WretchAddon
-} from "./types.js"
+    Wretch,
+    ConfiguredMiddleware,
+    FetchLike,
+    Middleware,
+    WretchResponseChain,
+    WretchOption,
+    WretchError,
+    WretchErrorCallback,
+    WretchResponse,
+    WretchDeferredCallback,
+    WretchAddon
+} from './type'
 
 /**
  * Creates a new wretch instance with a base url and base
@@ -31,10 +31,10 @@ export type {
  * @param _options The base fetch options
  * @returns A fresh wretch instance
  */
-const factory = (_url = "", _options: WretchOptions = {}): Wretch =>
-  ({ ...core, _url, _options })
+const factory = (_url = '', _options: WretchOption = {}): Wretch =>
+    ({...core, _url, _option: _options})
 
-factory["default"] = factory
+factory['default'] = factory
 factory.WretchError = WretchError
 
 export default factory

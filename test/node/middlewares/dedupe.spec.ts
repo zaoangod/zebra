@@ -1,6 +1,6 @@
 import { describe, it, before, beforeEach, after } from "node:test"
 import * as http from "http"
-import wretch, { WretchOptions } from "../../../src"
+import wretch, { WretchOption } from "../../../src"
 import { dedupe } from "../../../src/middlewares"
 import { mock } from "./mock"
 import { expect } from "../helpers"
@@ -10,7 +10,7 @@ export default describe("Dedupe Middleware", () => {
   let server: http.Server | null = null
   let logs: any[] = []
 
-  const log = (url: string, options: WretchOptions) => {
+  const log = (url: string, options: WretchOption) => {
     logs.push([url, options.method])
   }
 
@@ -45,14 +45,14 @@ export default describe("Dedupe Middleware", () => {
   it("should prevent sending multiple requests", async () => {
     const w = wretch(baseAddress()).fetchPolyfill(mock(log)).middlewares([dedupe()])
     const results = await Promise.all([
-      w.get("/one").res(),
-      w.get("/one").res(),
-      w.get("/one").res(),
-      w.get("/two").res(),
-      w.get("/two").res(),
-      w.get("/three").res(),
-      w.post("body", "/one").res(),
-      w.post("body", "/one").res(),
+      w.get("/one").response(),
+      w.get("/one").response(),
+      w.get("/one").response(),
+      w.get("/two").response(),
+      w.get("/two").response(),
+      w.get("/three").response(),
+      w.post("body", "/one").response(),
+      w.post("body", "/one").response(),
     ])
 
     expect(logs).toEqual([
@@ -77,12 +77,12 @@ export default describe("Dedupe Middleware", () => {
       skip: (url, options) => { return options.skip || url.endsWith("/toto") }
     })])
     await Promise.all([
-      w.get("/one").res(),
-      w.get("/one").res(),
-      w.get("/one").res(),
-      w.options({ skip: true }).get("/one").res(),
-      w.get("/toto").res(),
-      w.get("/toto").res()
+      w.get("/one").response(),
+      w.get("/one").response(),
+      w.get("/one").response(),
+      w.options({ skip: true }).get("/one").response(),
+      w.get("/toto").response(),
+      w.get("/toto").response()
     ])
 
     expect(logs).toEqual([
@@ -99,9 +99,9 @@ export default describe("Dedupe Middleware", () => {
     })])
 
     const results = await Promise.all([
-      w.get("/one").res(),
-      w.get("/two").res(),
-      w.get("/three").res()
+      w.get("/one").response(),
+      w.get("/two").response(),
+      w.get("/three").response()
     ])
 
     expect(logs).toEqual([
@@ -123,9 +123,9 @@ export default describe("Dedupe Middleware", () => {
     })])
 
     const results = await Promise.all([
-      w.get("/one").res(),
-      w.get("/one").res(),
-      w.get("/one").res()
+      w.get("/one").response(),
+      w.get("/one").response(),
+      w.get("/one").response()
     ])
 
     expect(results[0]).toStrictEqual(results[1])

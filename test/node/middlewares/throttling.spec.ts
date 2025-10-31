@@ -1,6 +1,6 @@
 import * as http from "http"
 import { describe, it, before, after, beforeEach } from "node:test"
-import wretch, { WretchOptions } from "../../../src"
+import wretch, { WretchOption } from "../../../src"
 import { throttlingCache } from "../../../src/middlewares"
 import { mock } from "./mock"
 import { expect } from "../helpers"
@@ -10,7 +10,7 @@ export default describe("Throttling Cache Middleware", () => {
   let server: http.Server | null = null
   let logs: any[] = []
 
-  const log = (url: string, options: WretchOptions) => {
+  const log = (url: string, options: WretchOption) => {
     logs.push([url, options.method])
   }
 
@@ -48,12 +48,12 @@ export default describe("Throttling Cache Middleware", () => {
       throttle: 500
     })])
     const results = await Promise.all([
-      w.get("/one").res(),
-      w.get("/one").res(),
-      w.get("/one").res(),
-      w.get("/two").res(),
-      w.get("/two").res(),
-      w.get("/three").res(),
+      w.get("/one").response(),
+      w.get("/one").response(),
+      w.get("/one").response(),
+      w.get("/two").response(),
+      w.get("/two").response(),
+      w.get("/three").response(),
     ])
 
     expect(logs).toEqual([
@@ -73,7 +73,7 @@ export default describe("Throttling Cache Middleware", () => {
     logs = []
 
     await new Promise(resolve => setTimeout(resolve, 500))
-    await w.get("/one").res()
+    await w.get("/one").response()
     expect(logs).toEqual([
       [baseAddress() + "/one", "GET"],
     ])
@@ -84,12 +84,12 @@ export default describe("Throttling Cache Middleware", () => {
       skip(url) { return url.endsWith("/two") }
     })])
     await Promise.all([
-      w.get("/one").res(),
-      w.get("/one").res(),
-      w.get("/one").res(),
-      w.get("/two").res(),
-      w.get("/two").res(),
-      w.get("/three").res(),
+      w.get("/one").response(),
+      w.get("/one").response(),
+      w.get("/one").response(),
+      w.get("/two").response(),
+      w.get("/two").response(),
+      w.get("/three").response(),
     ])
 
     expect(logs).toEqual([
@@ -111,8 +111,8 @@ export default describe("Throttling Cache Middleware", () => {
     const wCustom = base().middlewares([customMiddleware])
 
     const promises = Promise.all([
-      wDefault.url("/url").get().res(),
-      wCustom.url("/url").get().res()
+      wDefault.url("/url").get().response(),
+      wCustom.url("/url").get().response()
     ])
 
     const defaultKey = "GET@" + baseAddress() + "/url"
@@ -143,16 +143,16 @@ export default describe("Throttling Cache Middleware", () => {
       }
     })
     const w = base().middlewares([middleware])
-    const p0 = w.get("/zero").res()
-    const p1 = w.get("/one").res()
+    const p0 = w.get("/zero").response()
+    const p1 = w.get("/one").response()
     expect(middleware.cache.has("GET@" + baseAddress() + "/one")).toBe(false)
     await new Promise(resolve => setTimeout(resolve, 100))
     expect(middleware.cache.size).toBe(2)
     expect(middleware.cache.has("GET@" + baseAddress() + "/one")).toBe(true)
-    const p2 = w.get("/one").res()
+    const p2 = w.get("/one").response()
     expect(middleware.cache.has("GET@" + baseAddress() + "/one")).toBe(true)
     expect(middleware.cache.size).toBe(2)
-    const p3 = w.options({ clear: true }).get("/one").res()
+    const p3 = w.options({ clear: true }).get("/one").response()
     expect(middleware.cache.has("GET@" + baseAddress() + "/one")).toBe(false)
     expect(middleware.cache.size).toBe(0)
     await Promise.all([p0, p1, p2, p3])
@@ -168,16 +168,16 @@ export default describe("Throttling Cache Middleware", () => {
       skip(url) { return url.endsWith("/invalidate") }
     })
     const w = base().middlewares([middleware])
-    const p0 = w.get("/zero").res()
-    const p1 = w.get("/one").res()
+    const p0 = w.get("/zero").response()
+    const p1 = w.get("/one").response()
     expect(middleware.cache.has("GET@" + baseAddress() + "/one")).toBe(false)
     await new Promise(resolve => setTimeout(resolve, 100))
     expect(middleware.cache.size).toBe(2)
     expect(middleware.cache.has("GET@" + baseAddress() + "/one")).toBe(true)
-    const p2 = w.get("/one").res()
+    const p2 = w.get("/one").response()
     expect(middleware.cache.has("GET@" + baseAddress() + "/one")).toBe(true)
     expect(middleware.cache.size).toBe(2)
-    const p3 = w.get("/invalidate").res()
+    const p3 = w.get("/invalidate").response()
     expect(middleware.cache.has("GET@" + baseAddress() + "/one")).toBe(false)
     expect(middleware.cache.size).toBe(1)
     await Promise.all([p0, p1, p2, p3])
@@ -190,8 +190,8 @@ export default describe("Throttling Cache Middleware", () => {
       }
     })
     const w = base().middlewares([middleware])
-    const p0 = w.get("/zero").res()
-    const p1 = w.get("/one").res()
+    const p0 = w.get("/zero").response()
+    const p1 = w.get("/one").response()
     expect(middleware.cache.has("GET@" + baseAddress() + "/one")).toBe(false)
     expect(middleware.cache.has("GET@" + baseAddress() + "/zero")).toBe(false)
     await new Promise(resolve => setTimeout(resolve, 100))
@@ -211,12 +211,12 @@ export default describe("Throttling Cache Middleware", () => {
     })
     const w = base().middlewares([middleware])
     const firstWave = await Promise.all([
-      w.get("/zero").res(),
-      w.get("/one").res()
+      w.get("/zero").response(),
+      w.get("/one").response()
     ])
     const secondWave = await Promise.all([
-      w.get("/zero").res(),
-      w.get("/one").res()
+      w.get("/zero").response(),
+      w.get("/one").response()
     ])
     expect(firstWave.every(response => response["__marked"] === undefined)).toBe(true)
     expect(secondWave[0]["__marked"]).toBe(undefined)

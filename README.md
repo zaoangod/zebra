@@ -348,17 +348,17 @@ const user = await wretch("https://jsonplaceholder.typicode.com")
 ```javascript
 // 🔐 Automatic Token Refresh
 const api = wretch("https://httpbun.org/bearer/token")
-  .resolve(w => w.unauthorized(async (error, req) => {
-    const newToken = await refreshToken()
-    return req
-    .auth(`Bearer ${newToken}`)
-    .unauthorized(e => {
-      console.log("Still unauthorized after token refresh");
-      throw e
-    })
-    .fetch()
-    .json()
-  }))
+    .resolve(w => w.unauthorized(async (error, req) => {
+        const newToken = await refreshToken()
+        return req
+            .authorization(`Bearer ${newToken}`)
+            .unauthorized(e => {
+                console.log("Still unauthorized after token refresh");
+                throw e
+            })
+            .fetch()
+            .json()
+    }))
 ```
 
 ## Custom Fetch Implementation
@@ -607,22 +607,25 @@ perform an additional request.
 
 ```js
 await wretch("https://httpbun.org/bearer/aeacf2af-88e6-4f81-a0b0-77a121504ca8")
-  .get()
-  .unauthorized(async (error, req) => {
-    // Renew credentials
-    const token = await wretch("https://httpbun.org/mix/s=200/b64=YWVhY2YyYWYtODhlNi00ZjgxLWEwYjAtNzdhMTIxNTA0Y2E4").get().text();
-    // Replay the original request with new credentials
-    return req
-      .auth("Bearer " + token)
-      .fetch()
-      .unauthorized((err) => { throw err })
-      .json();
-  })
-  .json()
-  // The promise chain is preserved as expected
-  // ".then" will be performed on the result of the original request
-  // or the replayed one (if a 401 error was thrown)
-  .then(() => { /* … */ });
+    .get()
+    .unauthorized(async (error, req) => {
+        // Renew credentials
+        const token = await wretch("https://httpbun.org/mix/s=200/b64=YWVhY2YyYWYtODhlNi00ZjgxLWEwYjAtNzdhMTIxNTA0Y2E4").get().text();
+        // Replay the original request with new credentials
+        return req
+            .authorization("Bearer " + token)
+            .fetch()
+            .unauthorized((err) => {
+                throw err
+            })
+            .json();
+    })
+    .json()
+    // The promise chain is preserved as expected
+    // ".then" will be performed on the result of the original request
+    // or the replayed one (if a 401 error was thrown)
+    .then(() => { /* … */
+    });
 ```
 
 ### [Response Types 🔗](https://elbywan.github.io/wretch/api/interfaces/index.WretchResponseChain#arrayBuffer)
@@ -1228,4 +1231,3 @@ Comprehensive migration guides are available for upgrading between major version
 # License
 
 MIT
-

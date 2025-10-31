@@ -1,6 +1,6 @@
 import { describe, it, beforeEach } from "node:test"
 import * as assert from "node:assert"
-import wretch, { WretchOptions } from "../../../src"
+import wretch, { WretchOption } from "../../../src"
 import { retry } from "../../../src/middlewares"
 import { expect } from "../helpers"
 
@@ -8,7 +8,7 @@ export default describe("Retry Middleware", () => {
   let logs: any[] = []
   const mock = (max = 5) => {
     const ref = { counter: 1 }
-    return (url: string, options: WretchOptions): Promise<any> => {
+    return (url: string, options: WretchOption): Promise<any> => {
       logs.push([url, options.method])
       return Promise.resolve({
         ok: ref.counter++ >= max,
@@ -35,7 +35,7 @@ export default describe("Retry Middleware", () => {
 
   it("should retry requests", async () => {
     await assert.rejects(
-      () => base().get("/retry").res(),
+      () => base().get("/retry").response(),
       /Number of attempts exceeded\./
     )
     expect(logs.length).toEqual(11)
@@ -43,7 +43,7 @@ export default describe("Retry Middleware", () => {
     logs = []
 
     const five = base().fetchPolyfill(mock(5))
-    await five.get("/retry").res()
+    await five.get("/retry").response()
     expect(logs.length).toEqual(5)
   })
 
@@ -58,7 +58,7 @@ export default describe("Retry Middleware", () => {
       true
     )
     await assert.rejects(
-      () => w.get("/retry").res(),
+      () => w.get("/retry").response(),
       /Number of attempts exceeded\./
     )
     expect(logs.length).toEqual(4)
@@ -81,7 +81,7 @@ export default describe("Retry Middleware", () => {
       true
     )
 
-    await w.get("/retry").res()
+    await w.get("/retry").response()
     expect(logs.length).toEqual(3)
   })
 
@@ -104,7 +104,7 @@ export default describe("Retry Middleware", () => {
       )
       .options({ a: 1 })
     await assert.rejects(
-      () => w.get("/retry").res(),
+      () => w.get("/retry").response(),
       /Number of attempts exceeded\./
     )
     expect(counter).toEqual(10)
@@ -126,7 +126,7 @@ export default describe("Retry Middleware", () => {
       true
     )
     await assert.rejects(
-      () => w.options({ a: 0 }).get("/0").res(),
+      () => w.options({ a: 0 }).get("/0").response(),
       /Number of attempts exceeded\./
     )
     logs.forEach((log, index) => {
@@ -168,11 +168,11 @@ export default describe("Retry Middleware", () => {
       )
 
     await assert.rejects(
-      () => wThrow.get("/retry").res(),
+      () => wThrow.get("/retry").response(),
       /Network Error/
     )
     await assert.rejects(
-      () => wRetry.get("/retry").res(),
+      () => wRetry.get("/retry").response(),
       /Network Error/
     )
     expect(counter).toBe(10)
@@ -184,7 +184,7 @@ export default describe("Retry Middleware", () => {
       true
     )
     try {
-      await w.get("/retry").res()
+      await w.get("/retry").response()
       assert.fail("Expected to reject")
     } catch (err: any) {
       expect(err.response).toMatchObject({ ok: false, counter: 12 })
@@ -203,7 +203,7 @@ export default describe("Retry Middleware", () => {
     )
 
     await assert.rejects(
-      () => withSkip.get("/retry").res(),
+      () => withSkip.get("/retry").response(),
       /Number of attempts exceeded\./
     )
     expect(logs.length).toEqual(11)
@@ -211,7 +211,7 @@ export default describe("Retry Middleware", () => {
     logs = []
 
     await assert.rejects(
-      () => withSkip.options({ skipRetry: true }).get("/retry").res()
+      () => withSkip.options({ skipRetry: true }).get("/retry").response()
     )
     expect(logs.length).toEqual(1)
   })
@@ -234,7 +234,7 @@ export default describe("Retry Middleware", () => {
       .middlewares([retry({ delayTimer: 1 })])
 
     await assert.rejects(
-      () => w.get("/retry").res()
+      () => w.get("/retry").response()
     )
     expect(logs.length).toEqual(1)
 
@@ -257,7 +257,7 @@ export default describe("Retry Middleware", () => {
       .middlewares([retry({ delayTimer: 1 })])
 
     await assert.rejects(
-      () => w2.get("/retry").res(),
+      () => w2.get("/retry").response(),
       /Number of attempts exceeded\./
     )
     expect(logs.length).toEqual(11)

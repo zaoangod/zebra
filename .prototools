@@ -1,4 +1,0 @@
-node = "lts"
-npm = "latest"
-deno = "latest"
-bun = "latest"

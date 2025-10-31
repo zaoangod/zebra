@@ -1,0 +1,18 @@
+# 每行最大宽度
+printWidth: 999
+# 句末使用分号
+semi: false
+# 使用单引号
+singleQuote: true
+# tab健的空格数
+tabWidth: 4
+# 是否使用tab格式化
+useTabs: false
+# 在对象前后添加空格-eg: { foo: bar }
+bracketSpacing: false
+# 属性html标签的‘>’折行放置
+bracketSameLine: true
+# 结束行形式
+endOfLine: crlf
+# 标签属性是否单独一行
+singleAttributePerLine: false

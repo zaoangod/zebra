@@ -1,4 +1,4 @@
-import type { ConfiguredMiddleware } from "../types.js"
+import type {ConfiguredMiddleware} from '../type'
 
 /* Types */
 
@@ -17,5 +17,5 @@ export type DelayMiddleware = (time: number) => ConfiguredMiddleware
 
 
 export const delay: DelayMiddleware = time => next => (url, opts) => {
-  return new Promise(res => setTimeout(() => res(next(url, opts)), time))
+    return new Promise(res => setTimeout(() => res(next(url, opts)), time))
 }

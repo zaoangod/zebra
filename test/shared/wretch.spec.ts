@@ -1,5 +1,5 @@
 import wretch from "../../src"
-import { mix } from "../../src/utils"
+import { mix } from "../../src/util"
 
 import AbortAddon from "../../src/addons/abort"
 import BasicAuthAddon from "../../src/addons/basicAuth"
@@ -10,7 +10,7 @@ import ProgressAddon from "../../src/addons/progress"
 import QueryStringAddon from "../../src/addons/queryString"
 
 import { WretchError } from "../../src/resolver"
-import type { Wretch, FetchLike, WretchOptions, WretchResponse } from "../../src"
+import type { Wretch, FetchLike, WretchOption, WretchResponse } from "../../src"
 
 const _PORT = 9876
 const _URL = `http://localhost:${_PORT}`
@@ -143,7 +143,7 @@ export function createWretchTests(ctx: TestContext): void {
       expect(compareBuffers(result1, duckImage)).toBe(true)
 
       const result2 = await wretch(`${_URL}/blob/roundTrip`)
-        .headers({ "content-type": "application/xxx-octet-stream" })
+        .header({ "content-type": "application/xxx-octet-stream" })
         .post(duckImage)
         .arrayBuffer(buf => hasBuffer ? Buffer.from(buf) : new Uint8Array(buf))
       expect(compareBuffers(result2, duckImage)).toBe(true)
@@ -188,7 +188,7 @@ export function createWretchTests(ctx: TestContext): void {
         () => wretch(`${_URL}/json/roundTrip`).content("bad/content").post(jsonObject).json()
       )
       const headerWithCharset = "application/json; charset=utf-16"
-      expect(wretch().content(headerWithCharset).json({})._options.headers["Content-Type"]).toBe(headerWithCharset)
+      expect(wretch().content(headerWithCharset).json({})._option.headers["Content-Type"]).toBe(headerWithCharset)
     })
 
     it("should perform an url encoded form data round trip", async function () {
@@ -292,25 +292,25 @@ export function createWretchTests(ctx: TestContext): void {
     })
 
     it("should perform OPTIONS and HEAD requests", async function () {
-      const optsRes = await wretch(_URL + "/options").opts().res()
-      const optsRes2 = await wretch(_URL + "/options").opts("").res()
+      const optsRes = await wretch(_URL + "/options").opts().response()
+      const optsRes2 = await wretch(_URL + "/options").opts("").response()
       expect(optsRes.headers.get("Allow")).toBe("OPTIONS")
       expect(optsRes2.headers.get("Allow")).toBe("OPTIONS")
-      const headRes = await wretch(_URL + "/json").head().res()
-      const headRes2 = await wretch(_URL + "/json").head("").res()
+      const headRes = await wretch(_URL + "/json").head().response()
+      const headRes2 = await wretch(_URL + "/json").head("").response()
       expect(headRes.headers.get("content-type")).toBe("application/json")
       expect(headRes2.headers.get("content-type")).toBe("application/json")
     })
 
     it("should preserve existing headers when undefined or null is passed to .headers()", async function () {
       const headers = { "X-HELLO": "WORLD", "X-Y": "Z" }
-      let req = wretch().headers({ "X-HELLO": "WORLD" })
-      req = req.headers({ "X-Y": "Z" })
-      expect(req._options.headers).toEqual(headers)
-      req = req.headers(null)
-      expect(req._options.headers).toEqual(headers)
-      req = req.headers(undefined)
-      expect(req._options.headers).toEqual(headers)
+      let req = wretch().header({ "X-HELLO": "WORLD" })
+      req = req.header({ "X-Y": "Z" })
+      expect(req._option.headers).toEqual(headers)
+      req = req.header(null)
+      expect(req._option.headers).toEqual(headers)
+      req = req.header(undefined)
+      expect(req._option.headers).toEqual(headers)
     })
 
     it("should catch common error codes", async function () {
@@ -352,18 +352,18 @@ export function createWretchTests(ctx: TestContext): void {
         .error(444, _ => check++)
         .unauthorized(_ => check++)
         .fetchError(_ => check++)
-        .res(_ => expect(_).toBeUndefined())
+        .response(_ => expect(_).toBeUndefined())
       expect(check).toBe(1)
 
       check = 0
       await wretch(`${_URL}/444`)
-        .options({ signal: AbortSignal.abort() })
+        .option({ signal: AbortSignal.abort() })
         .get()
         .notFound(_ => check++)
         .error(444, _ => check++)
         .unauthorized(_ => check++)
         .fetchError(_ => check--)
-        .res(_ => expect(_).toBeUndefined())
+        .response(_ => expect(_).toBeUndefined())
       expect(check).toBe(-1)
     })
 
@@ -376,14 +376,14 @@ export function createWretchTests(ctx: TestContext): void {
         .catcher(401, _ => check--)
         .catcherFallback(_ => check++)
 
-      await w.url("/text").get().res(_ => check++)
+      await w.url("/text").get().response(_ => check++)
       await w.url("/text").catcherFallback(_ => {}).get().json(_ => check--)
-      await w.url("/400").get().res(_ => check--)
-      await w.url("/401").get().unauthorized(_ => check++).res(_ => check--)
-      await w.url("/404").get().res(_ => check--)
-      await w.url("/408").get().timeout(_ => check++).res(_ => check--)
-      await w.url("/418").get().res(_ => check--).catch(_ => "muted")
-      await w.url("/500").get().res(_ => check--)
+      await w.url("/400").get().response(_ => check--)
+      await w.url("/401").get().unauthorized(_ => check++).response(_ => check--)
+      await w.url("/404").get().response(_ => check--)
+      await w.url("/408").get().timeout(_ => check++).response(_ => check--)
+      await w.url("/418").get().response(_ => check--).catch(_ => "muted")
+      await w.url("/500").get().response(_ => check--)
 
       expect(check).toBe(7)
     })
@@ -397,13 +397,13 @@ export function createWretchTests(ctx: TestContext): void {
         .catcher(404, _ => _404++)
         .catcherFallback(_ => fallback++)
 
-      await w.url("/404").get().res(_ => fallback--)
+      await w.url("/404").get().response(_ => fallback--)
       await w
-        .options({ signal: AbortSignal.abort() })
+        .option({ signal: AbortSignal.abort() })
         .get()
         .fetchError(_ => fetchError++)
-        .res(_ => fallback--)
-      await w.url("/401").get().res(_ => fallback--)
+        .response(_ => fallback--)
+      await w.url("/401").get().response(_ => fallback--)
 
       expect(_404).toBe(1)
       expect(fetchError).toBe(1)
@@ -444,9 +444,9 @@ export function createWretchTests(ctx: TestContext): void {
       const obj2 = obj1.url(_URL, true)
       expect(obj1["_url"]).toBe("...")
       expect(obj2["_url"]).toBe(_URL)
-      const obj3 = obj1.options({ headers: { "X-test": "test" } })
-      expect(obj3["_options"]).toEqual({ headers: { "X-test": "test" } })
-      expect(obj1["_options"]).toEqual({})
+      const obj3 = obj1.option({ headers: { "X-test": "test" } })
+      expect(obj3["_option"]).toEqual({ headers: { "X-test": "test" } })
+      expect(obj1["_option"]).toEqual({})
       const obj4 = obj2.addon(QueryStringAddon).query({ a: "1!", b: "2" })
       expect(obj4["_url"]).toBe(`${_URL}?a=1%21&b=2`)
       expect(obj2["_url"]).toBe(_URL)
@@ -468,7 +468,7 @@ export function createWretchTests(ctx: TestContext): void {
         .query({ test: "value" })
 
       expect(w["_url"]).toBe(`${_URL}/basicauth?test=value`)
-      expect(w._options.headers["Authorization"]).toBe("Basic d3JldGNoOnLDtmNrcw==")
+      expect(w._option.headers["Authorization"]).toBe("Basic d3JldGNoOnLDtmNrcw==")
       const res = await w.get().text()
       expect(res).toBe("ok")
     })
@@ -484,7 +484,7 @@ export function createWretchTests(ctx: TestContext): void {
           async () => {
             await wretch(_URL + "/basicauth")
               .get()
-              .res()
+              .response()
           },
           (e: WretchError) => {
             expect(e.status).toBe(401)
@@ -496,7 +496,7 @@ export function createWretchTests(ctx: TestContext): void {
 
       it("should set the Authorization header using the .auth() method", async function () {
         const res = await wretch(_URL + "/basicauth")
-          .auth("Basic d3JldGNoOnLDtmNrcw==")
+          .authorization("Basic d3JldGNoOnLDtmNrcw==")
           .get()
           .text()
 
@@ -539,7 +539,7 @@ export function createWretchTests(ctx: TestContext): void {
           expect(error.json).toEqual({ error: 500, message: "ok" })
           expect(error.message).toEqual("Internal Server Error")
         })
-        .res()
+        .response()
         .then(_ => expect(_).toBeUndefined())
 
       await wretch(`${_URL}/json500raw`)
@@ -547,7 +547,7 @@ export function createWretchTests(ctx: TestContext): void {
         .internalError(error => {
           expect(error.message).toEqual("{\"error\":500,\"message\":\"ok\"}")
         })
-        .res()
+        .response()
         .then(_ => expect(_).toBeUndefined())
 
       await wretch(`${_URL}/json500raw`)
@@ -560,7 +560,7 @@ export function createWretchTests(ctx: TestContext): void {
           expect(error.json).toEqual({ "error":500, "message": "ok" })
           expect(error.message).toEqual("ok")
         })
-        .res()
+        .response()
         .then(_ => expect(_).toBeUndefined())
     })
 
@@ -570,14 +570,14 @@ export function createWretchTests(ctx: TestContext): void {
 
       const w = wretch()
         .addon(PerfsAddon())
-      await w.url(`${_URL}/text`).get().perfs().res(_ => expect(_.ok).toBeTruthy())
+      await w.url(`${_URL}/text`).get().perfs().response(_ => expect(_.ok).toBeTruthy())
 
       await new Promise<void>(resolve => {
         w.url(`${_URL}/bla`).get().perfs(timings => {
           expect(timings.name).toBe(`${_URL}/bla`)
           expect(typeof timings.startTime).toBe("number")
           resolve()
-        }).res().catch(_ => "ignore")
+        }).response().catch(_ => "ignore")
       })
 
       await Promise.all(new Array(5).fill(0).map((_, i) =>
@@ -585,7 +585,7 @@ export function createWretchTests(ctx: TestContext): void {
           w.url(`${_URL}/fake/${i}`).get().perfs(timings => {
             expect(timings.name).toBe(`${_URL}/fake/${i}`)
             resolve()
-          }).res().catch(() => "ignore")
+          }).response().catch(() => "ignore")
         })
       ))
     })
@@ -656,7 +656,7 @@ export function createWretchTests(ctx: TestContext): void {
             expect(total).toBe(blob.size)
           })
           .post(blob)
-          .res(() => {
+          .response(() => {
             expect(progressCalled).toBe(true)
             resolve()
           })
@@ -682,7 +682,7 @@ export function createWretchTests(ctx: TestContext): void {
             expect(total).toBe(buffer.byteLength)
           })
           .post(buffer)
-          .res(() => {
+          .response(() => {
             expect(progressCalled).toBe(true)
             resolve()
           })
@@ -778,12 +778,12 @@ export function createWretchTests(ctx: TestContext): void {
         .addon(AbortAddon())
         .signal(controller)
         .get()
-        .res()
+        .response()
         .catch(handleError)
       controller.abort()
 
       const [c, w] = wretch(`${_URL}/longResult`).addon(AbortAddon()).get().controller()
-      w.res().catch(handleError)
+      w.response().catch(handleError)
       c.abort()
 
       wretch(`${_URL}/longResult`)
@@ -792,10 +792,10 @@ export function createWretchTests(ctx: TestContext): void {
         .setTimeout(100)
         .fetchError(() => { })
         .onAbort(handleError)
-        .res()
+        .response()
 
       const [c2, w2] = wretch(`${_URL}/longResult`).addon(AbortAddon()).get().controller()
-      w2.setTimeout(100, { controller: c2 }).onAbort(handleError).res()
+      w2.setTimeout(100, { controller: c2 }).onAbort(handleError).response()
 
       await new Promise(resolve => setTimeout(resolve, 1000))
       expect(count).toBe(4)
@@ -826,30 +826,30 @@ export function createWretchTests(ctx: TestContext): void {
     })
 
     it("should use middlewares", async function () {
-      const shortCircuit = () => (_next: FetchLike) => (url: string, opts: WretchOptions): Promise<WretchResponse> => Promise.resolve({
+      const shortCircuit = () => (_next: FetchLike) => (url: string, opts: WretchOption): Promise<WretchResponse> => Promise.resolve({
         ok: true,
         text: () => Promise.resolve(opts.method + "@" + url)
       } as WretchResponse)
-      const setGetMethod = () => (next: FetchLike) => (url: string, opts: WretchOptions) => {
+      const setGetMethod = () => (next: FetchLike) => (url: string, opts: WretchOption) => {
         return next(url, { ...opts, method: "GET" })
       }
-      const setPostMethod = () => (next: FetchLike) => (url: string, opts: WretchOptions) => {
+      const setPostMethod = () => (next: FetchLike) => (url: string, opts: WretchOption) => {
         return next(url, { ...opts, method: "POST" })
       }
-      const w = wretch().middlewares([
+      const w = wretch().middleware([
         shortCircuit()
       ])
 
       expect(await w.url(_URL).head().text()).toBe(`HEAD@${_URL}`)
 
-      const w2 = w.middlewares([
+      const w2 = w.middleware([
         setGetMethod(),
         shortCircuit()
       ], true)
 
       expect(await w2.url(_URL).head().text()).toBe(`GET@${_URL}`)
 
-      const w3 = w.middlewares([
+      const w3 = w.middleware([
         setGetMethod(),
         setPostMethod(),
         shortCircuit()
@@ -864,13 +864,13 @@ export function createWretchTests(ctx: TestContext): void {
           expect(opts.method).toBe("GET")
           expect(opts.q).toBe("a")
           expect(url).toBe(_URL + "/basicauth")
-          return w.auth("toto")
+          return w.authorization("toto")
         })
-        .defer((w, url, { token }) => w.auth(token), true)
+        .defer((w, url, { token }) => w.authorization(token), true)
 
       const result = await w
-        .options({ token: "Basic d3JldGNoOnLDtmNrcw==" })
-        .options({ q: "a" })
+        .option({ token: "Basic d3JldGNoOnLDtmNrcw==" })
+        .option({ q: "a" })
         .get("")
         .text()
       expect(result).toBe("ok")
@@ -881,7 +881,7 @@ export function createWretchTests(ctx: TestContext): void {
         .get()
         .unauthorized((_, request) => {
           return request
-            .auth("Basic d3JldGNoOnLDtmNrcw==")
+            .authorization("Basic d3JldGNoOnLDtmNrcw==")
             .fetch()
             .text()
         })
@@ -935,13 +935,13 @@ export function createWretchTests(ctx: TestContext): void {
 
     it("should preserve middlewares when converting to fetch", async function () {
       let middlewareCalled = false
-      const testMiddleware = () => (next: FetchLike) => (url: string, opts: WretchOptions) => {
+      const testMiddleware = () => (next: FetchLike) => (url: string, opts: WretchOption) => {
         middlewareCalled = true
         return next(url, opts)
       }
 
       const fetchFn = wretch(_URL)
-        .middlewares([testMiddleware()])
+        .middleware([testMiddleware()])
         .toFetch()
 
       await fetchFn("/text", { method: "GET" })
@@ -950,15 +950,15 @@ export function createWretchTests(ctx: TestContext): void {
 
     it("should merge options correctly in toFetch", async function () {
       let actualHeaders: Record<string, string> = {}
-      const captureMiddleware = () => (next: FetchLike) => (url: string, opts: WretchOptions) => {
+      const captureMiddleware = () => (next: FetchLike) => (url: string, opts: WretchOption) => {
         actualHeaders = opts.headers as Record<string, string>
         return next(url, opts)
       }
 
       const fetchFn = wretch(_URL)
-        .headers({ "X-Custom-Header": "base" })
-        .middlewares([captureMiddleware()])
-        .headers({ "X-Custom-Header-2": "input" })
+        .header({ "X-Custom-Header": "base" })
+        .middleware([captureMiddleware()])
+        .header({ "X-Custom-Header-2": "input" })
         .toFetch()
 
       await fetchFn("/text", { method: "GET", headers: { "X-Custom-Header-3": "fetch" } })
@@ -982,7 +982,7 @@ export function createWretchTests(ctx: TestContext): void {
 
     it("should preserve authentication headers in toFetch", async function () {
       const fetchFn = wretch(_URL)
-        .auth("Basic d3JldGNoOnLDtmNrcw==")
+        .authorization("Basic d3JldGNoOnLDtmNrcw==")
         .toFetch()
 
       const response = await fetchFn("/basicauth", { method: "GET" })
@@ -1016,8 +1016,8 @@ export function createWretchTests(ctx: TestContext): void {
 
     it("should chain toFetch with other wretch methods", async function () {
       const fetchFn = wretch(_URL)
-        .headers({ "X-Custom-Header": "header" })
-        .auth("Basic d3JldGNoOnLDtmNrcw==")
+        .header({ "X-Custom-Header": "header" })
+        .authorization("Basic d3JldGNoOnLDtmNrcw==")
         .toFetch()
 
       const response = await fetchFn("/basicauth", { method: "GET" })
@@ -1028,7 +1028,7 @@ export function createWretchTests(ctx: TestContext): void {
     it("should allow reusing the body after a WretchError has been thrown", async function () {
       const w = wretch(_URL)
       try {
-        await w.get("/418").res()
+        await w.get("/418").response()
       } catch (error) {
         const text = await error.response.text()
         expect(text).toBe("error code : 418")

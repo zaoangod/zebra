@@ -1,14 +1,14 @@
-import type { ConfiguredMiddleware, WretchOptions } from "../types.js"
+import type {ConfiguredMiddleware, WretchOption} from '../type'
 
 /* Types */
 
-export type DedupeSkipFunction = (url: string, opts: WretchOptions) => boolean
-export type DedupeKeyFunction = (url: string, opts: WretchOptions) => string
+export type DedupeSkipFunction = (url: string, opts: WretchOption) => boolean
+export type DedupeKeyFunction = (url: string, opts: WretchOption) => string
 export type DedupeResolverFunction = (response: Response) => Response
 export type DedupeOptions = {
-  skip?: DedupeSkipFunction,
-  key?: DedupeKeyFunction,
-  resolver?: DedupeResolverFunction
+    skip?: DedupeSkipFunction,
+    key?: DedupeKeyFunction,
+    resolver?: DedupeResolverFunction
 }
 /**
  * ## Dedupe middleware
@@ -35,51 +35,51 @@ export type DedupeMiddleware = (options?: DedupeOptions) => ConfiguredMiddleware
 /* Defaults */
 
 const defaultSkip: DedupeSkipFunction = (_, opts) => (
-  opts.skipDedupe || opts.method !== "GET"
+    opts.skipDedupe || opts.method !== 'GET'
 )
-const defaultKey: DedupeKeyFunction = (url: string, opts) => opts.method + "@" + url
+const defaultKey: DedupeKeyFunction = (url: string, opts) => opts.method + '@' + url
 const defaultResolver: DedupeResolverFunction = response => response.clone()
 
-export const dedupe: DedupeMiddleware = ({ skip = defaultSkip, key = defaultKey, resolver = defaultResolver } = {}) => {
+export const dedupe: DedupeMiddleware = ({skip = defaultSkip, key = defaultKey, resolver = defaultResolver} = {}) => {
 
-  const inflight = new Map()
+    const inflight = new Map()
 
-  return next => (url, opts) => {
+    return next => (url, opts) => {
 
-    if (skip(url, opts)) {
-      return next(url, opts)
+        if (skip(url, opts)) {
+            return next(url, opts)
+        }
+
+        const _key = key(url, opts)
+
+        if (!inflight.has(_key)) {
+            inflight.set(_key, [])
+        } else {
+            return new Promise((resolve, reject) => {
+                inflight.get(_key).push([resolve, reject])
+            })
+        }
+
+        try {
+            return next(url, opts)
+                .then(response => {
+                    // Resolve pending promises
+                    inflight.get(_key).forEach(([resolve]) => resolve(resolver(response)))
+                    // Remove the inflight pending promises
+                    inflight.delete(_key)
+                    // Return the original response
+                    return response
+                })
+                .catch(error => {
+                    // Reject pending promises on error
+                    inflight.get(_key).forEach(([, reject]) => reject(error))
+                    inflight.delete(_key)
+                    throw error
+                })
+        } catch (error) {
+            inflight.delete(_key)
+            return Promise.reject(error)
+        }
+
     }
-
-    const _key = key(url, opts)
-
-    if (!inflight.has(_key)) {
-      inflight.set(_key, [])
-    } else {
-      return new Promise((resolve, reject) => {
-        inflight.get(_key).push([resolve, reject])
-      })
-    }
-
-    try {
-      return next(url, opts)
-        .then(response => {
-          // Resolve pending promises
-          inflight.get(_key).forEach(([resolve]) => resolve(resolver(response)))
-          // Remove the inflight pending promises
-          inflight.delete(_key)
-          // Return the original response
-          return response
-        })
-        .catch(error => {
-          // Reject pending promises on error
-          inflight.get(_key).forEach(([, reject]) => reject(error))
-          inflight.delete(_key)
-          throw error
-        })
-    } catch (error) {
-      inflight.delete(_key)
-      return Promise.reject(error)
-    }
-
-  }
 }
