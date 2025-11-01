@@ -10,23 +10,23 @@ export class WretchError extends Error implements WretchErrorType {
 }
 
 export const resolver = <T, Chain, R, E>(wretch: T & Wretch<T, Chain, R, E>) => {
-    const sharedState = Object.create(null)
+    const shareState = Object.create(null)
 
-    wretch = wretch._addons.reduce((w, addon) =>
+    wretch = wretch._addon.reduce((w, addon) =>
             addon.beforeRequest &&
-            addon.beforeRequest(w, wretch._option, sharedState)
+            addon.beforeRequest(w, wretch._configure, shareState)
             || w,
         wretch)
 
     const {
         _url: url,
-        _option: opts,
+        _configure: opts,
         _fetch: customFetch,
         _errorTransformer: errorTransformer,
         _catcher: _catchers,
         _resolver: resolvers,
         _middleware: middlewares,
-        _addons: addons
+        _addon: addon
     } = wretch
 
     const catchers = new Map(_catchers)
@@ -100,8 +100,8 @@ export const resolver = <T, Chain, R, E>(wretch: T & Wretch<T, Chain, R, E>) => 
 
     const responseChain: WretchResponseChain<T, Chain, R, E> = {
         _wretchReq: wretch,
-        _fetchReq,
-        _sharedState: sharedState,
+        _fetchReq: _fetchReq,
+        _shareState: shareState,
         response: bodyParser<WretchResponse>(null),
         json: bodyParser<any>('json'),
         blob: bodyParser<Blob>('blob'),
@@ -135,7 +135,7 @@ export const resolver = <T, Chain, R, E>(wretch: T & Wretch<T, Chain, R, E>) => 
         }
     }
 
-    const enhancedResponseChain: R extends undefined ? Chain & WretchResponseChain<T, Chain, undefined> : R = addons.reduce((chain, addon) => ({
+    const enhancedResponseChain: R extends undefined ? Chain & WretchResponseChain<T, Chain, undefined> : R = addon.reduce((chain, addon) => ({
         ...chain,
         ...(typeof addon.resolver === 'function' ? (addon.resolver as (_: WretchResponseChain<T, Chain, R, E>) => any)(chain) : addon.resolver)
     }), responseChain)

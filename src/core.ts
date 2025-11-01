@@ -1,35 +1,33 @@
 import {resolver} from './resolver.js'
-import {Wretch, WretchOption} from './type'
 import {CATCHER_FALLBACK} from './constant'
-import {extractContentType, isLikelyJsonMime, mix} from './util'
+import {Wretch, WretchOption} from './type'
+import {isArray, isObject, isString, mix} from './util'
 
 export const core: Wretch = {
     _url: '',
-    _option: {},
+    _configure: {},
     _catcher: new Map(),
     _resolver: [],
     _defer: [],
     _middleware: [],
-    _addons: [],
-    addon(addon) {
+    _addon: [],
+    addon(addon: any) {
         const addons = Array.isArray(addon) ? addon : [addon]
         const wretchProps = addons.reduce((buffer, item) => ({...buffer, ...item.wretch}), {})
         return {...this, _addons: [...this._addons, ...addons], ...wretchProps}
     },
-    url(u: string, replace = false) {
-        if (replace) {
-            return {...this, _url: u}
-        }
+    url(url: string, replace = false) {
+        if (replace) return {...this, _url: url}
         const index: number = this._url.indexOf('?')
         return {
             ...this,
             _url: index > -1 ?
-                this._url.slice(0, index) + u + this._url.slice(index) :
-                this._url + u
+                this._url.slice(0, index) + url + this._url.slice(index) :
+                this._url + url
         }
     },
-    option(option: WretchOption, replace = false) {
-        return {...this, _option: replace ? option : mix(this._option, option)}
+    configure(wretchOption: WretchOption, replace = false) {
+        return {...this, _configure: replace ? wretchOption : mix(this._configure, wretchOption)}
     },
     header(headerValue) {
         const headers =
@@ -37,7 +35,7 @@ export const core: Wretch = {
                 Array.isArray(headerValue) ? Object.fromEntries(headerValue) :
                     'entries' in headerValue ? Object.fromEntries((headerValue as Headers).entries()) :
                         headerValue
-        return {...this, _option: mix(this._option, {headers: headers})}
+        return {...this, _configure: mix(this._configure, {headers: headers})}
     },
     accept(value: string) {
         return this.header({'Accept': value})
@@ -74,59 +72,72 @@ export const core: Wretch = {
             _middlewares: clear ? middleware : [...this._middleware, ...middleware]
         }
     },
-    fetch(method: string = this._option.method, url = '', body = null) {
-        let base = this.url(url).option({method: method})
-        // "Jsonify" the body if it is an object and if it is likely that the content type targets json.
-        const contentType = extractContentType(base._option.headers)
-        const jsonify =
-            typeof body === 'object' &&
-            !(body instanceof FormData) &&
-            (!base._option.headers || !contentType || isLikelyJsonMime(contentType))
-        base =
-            !body ? base :
-                jsonify ? base.json(body, contentType) :
-                    base.body(body)
-        return resolver(
-            base
-                ._defer
-                .reduce((acc: Wretch, curr) => curr(acc, acc._url, acc._option), base)
-        )
+    body(content) {
+        return {...this, _configure: {...this._configure, body: content}}
     },
-    get(url: string = '') {
-        return this.fetch('GET', url)
+    json(value: string | object | any[]) {
+        if (isObject(value) || isArray(value)) {
+            return this.content('application/json').body(JSON.stringify(value))
+        }
+        throw new Error('value is not an object or array')
     },
-    delete(url: string = '') {
-        return this.fetch('DELETE', url)
-    },
-    put(body, url: string = '') {
-        return this.fetch('PUT', url, body)
-    },
-    post(body, url: string = '') {
-        return this.fetch('POST', url, body)
-    },
-    patch(body, url: string = '') {
-        return this.fetch('PATCH', url, body)
-    },
-    head(url: string = '') {
-        return this.fetch('HEAD', url)
-    },
-    opts(url: string = '') {
-        return this.fetch('OPTIONS', url)
-    },
-    body(contents) {
-        return {...this, _option: {...this._option, body: contents}}
-    },
-    json(value: object) {
-        return this.content('application/json').body(JSON.stringify(value))
+    form(value: string | object) {
+        const encodeQueryValue = (key: string, value: unknown): string => {
+            return encodeURIComponent(key) + '=' + encodeURIComponent(
+                typeof value === 'object' ? JSON.stringify(value) : `${value}`
+            )
+        }
+        const convertFormUrl = (data: object): string => {
+            return Object.keys(data).map(key => {
+                const value: any = data[key]
+                if (value instanceof Array) {
+                    return value.map(v => encodeQueryValue(key, v)).join('&')
+                }
+                return encodeQueryValue(key, value)
+            }).join('&')
+        }
+        if (isObject(value) || isString(value)) {
+            return this.content('application/x-www-form-urlencoded').body(typeof value === 'string' ? value : convertFormUrl(value))
+        }
+        throw new Error('value is not an object or string')
     },
     toFetch() {
-        return (fetchUrl, fetchOptions: WretchOption = {}) => {
+        return (fetchUrl: string, fetchOptions: WretchOption = {}) => {
             return this
                 .url(fetchUrl)
-                .option(fetchOptions)
+                .configure(fetchOptions)
                 .catcherFallback(error => error.response)
                 .fetch()
                 .response()
         }
+    },
+    fetch(method: string = this._configure.method, url = '') {
+        let base = this.url(url).configure({method: method})
+        return resolver(
+            base._defer.reduce((buffer: Wretch, item) => {
+                return item(buffer, buffer._url, buffer._configure)
+            }, base)
+        )
+    },
+    put(url: string = '') {
+        return this.fetch('PUT', url)
+    },
+    get(url: string = '') {
+        return this.fetch('GET', url)
+    },
+    head(url: string = '') {
+        return this.fetch('HEAD', url)
+    },
+    post(url: string = '') {
+        return this.fetch('POST', url)
+    },
+    patch(url: string = '') {
+        return this.fetch('PATCH', url)
+    },
+    delete(url: string = '') {
+        return this.fetch('DELETE', url)
+    },
+    option(url: string = '') {
+        return this.fetch('OPTIONS', url)
     }
 }

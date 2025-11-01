@@ -23,3 +23,14 @@ export const mix = (one: object, two: object, mergeArrays = false) => {
     }
     return acc
 }
+
+export const isObject = (value: unknown): boolean => {
+    return Object.prototype.toString.call(value) === '[object Object]'
+}
+
+export const isArray = (value: unknown): boolean => {
+    return Array.isArray(value)
+}
+export const isString = (value: unknown): boolean => {
+    return typeof value === 'string'
+}

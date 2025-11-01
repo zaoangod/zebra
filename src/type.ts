@@ -14,7 +14,7 @@ export interface Wretch<Self = unknown, Chain = unknown, Resolver = undefined, E
     /** @private @internal */
     _url: string,
     /** @private @internal */
-    _option: WretchOption,
+    _configure: WretchOption,
     /** @private @internal */
     _fetch?: FetchLike | ((url: string, opts: WretchOption) => Promise<Response>),
     /** @private @internal */
@@ -28,27 +28,25 @@ export interface Wretch<Self = unknown, Chain = unknown, Resolver = undefined, E
     /** @private @internal */
     _middleware: ConfiguredMiddleware[]
     /** @private @internal */
-    _addons: WretchAddon<unknown, Chain>[]
+    _addon: WretchAddon<unknown, Chain>[]
 
     /**
      * 注册插件来扩展功能
      *
      * ```js
-     * import FormDataAddon from "wretch/addons/formData"
-     * import QueryStringAddon from "wretch/addons/queryString"
+     * import FormDataAddon from 'form_data'
+     * import QueryStringAddon from 'query_string'
      *
-     * // Add a single addon
+     * // 添加一个插件
      * const w = wretch().addon(FormDataAddon)
      *
-     * // Or add multiple addons at once
+     * // 一次性添加多个
      * const w2 = wretch().addon([FormDataAddon, QueryStringAddon])
      *
-     * // Additional features are now available
+     * // 使用
      * w.formData({ hello: "world" }).query({ check: true })
      * ```
-     *
-     * @category Helpers
-     * @param addon - A Wretch addon or an array of addons to register
+     * @param addon 插件
      */
     addon<W, R>(addon: WretchAddon<W, R>): W & Self & Wretch<Self & W, Chain & R, Resolver, ErrorType>
 
@@ -69,30 +67,13 @@ export interface Wretch<Self = unknown, Chain = unknown, Resolver = undefined, E
     addon<W1, R1, W2, R2, W3, R3, W4, R4, W5, R5, W6, R6, W7, R7, W8, R8, W9, R9>(addon: [WretchAddon<W1, R1>, WretchAddon<W2, R2>, WretchAddon<W3, R3>, WretchAddon<W4, R4>, WretchAddon<W5, R5>, WretchAddon<W6, R6>, WretchAddon<W7, R7>, WretchAddon<W8, R8>, WretchAddon<W9, R9>]): W1 & W2 & W3 & W4 & W5 & W6 & W7 & W8 & W9 & Self & Wretch<Self & W1 & W2 & W3 & W4 & W5 & W6 & W7 & W8 & W9, Chain & R1 & R2 & R3 & R4 & R5 & R6 & R7 & R8 & R9, Resolver, ErrorType>
 
     /**
-     * Appends or replaces the url.
+     * 追加或替换url
      *
      * ```js
      * wretch("/root").url("/sub").get().json();
      *
-     * // Can be used to set a base url
-     *
-     * // Subsequent requests made using the 'blogs' object will be prefixed with "http://domain.com/api/blogs"
-     * const blogs = wretch("http://domain.com/api/blogs");
-     *
-     * // Perfect for CRUD apis
-     * const id = await blogs.post({ name: "my blog" }).json(blog => blog.id);
-     * const blog = await blogs.get(`/${id}`).json();
-     * console.log(blog.name);
-     *
-     * await blogs.url(`/${id}`).delete().res();
-     *
-     * // And to replace the base url if needed :
-     * const noMoreBlogs = blogs.url("http://domain2.com/", true);
-     * ```
-     *
-     * @category Helpers
-     * @param url - Url segment
-     * @param replace - If true, replaces the current url instead of appending
+     * // 设置一个基础url
+     * const blog = wretch("http://domain.com/api/blog");
      */
     url(this: Self & Wretch<Self, Chain, Resolver, ErrorType>, url: string, replace?: boolean): this
 
@@ -138,7 +119,7 @@ export interface Wretch<Self = unknown, Chain = unknown, Resolver = undefined, E
      * @param options - New options
      * @param replace - If true, replaces the existing options
      */
-    option(this: Self & Wretch<Self, Chain, Resolver, ErrorType>, options: WretchOption, replace?: boolean): this
+    configure(this: Self & Wretch<Self, Chain, Resolver, ErrorType>, options: WretchOption, replace?: boolean): this
 
     /**
      * Sets the request header.
@@ -408,7 +389,7 @@ export interface Wretch<Self = unknown, Chain = unknown, Resolver = undefined, E
     body(this: Self & Wretch<Self, Chain, Resolver, ErrorType>, contents: any): this
 
     /**
-     * Sets the "Content-Type" header, stringifies an object and sets the request body.
+     * set "Content-Type" = application/json
      *
      * ```js
      * const jsonObject = { a: 1, b: 2, c: 3 };
@@ -422,6 +403,19 @@ export interface Wretch<Self = unknown, Chain = unknown, Resolver = undefined, E
      */
     json(this: Self & Wretch<Self, Chain, Resolver, ErrorType>, value: object): this
 
+    /**
+     * set "Content-Type" = application/x-www-form-urlencoded
+     *
+     * ```js
+     * const form = { a: 1, b: { c: 2 } };
+     * const alreadyEncodedForm = "a=1&b=%7B%22c%22%3A2%7D";
+     *
+     * // Automatically sets the content-type header to "application/x-www-form-urlencoded"
+     * wretch("...").form(form).post();
+     * wretch("...").form(alreadyEncodedForm).post();
+     * ```
+     */
+    form(this: Self & Wretch<Self, Chain, Resolver, ErrorType>, value: string | object): this;
 
     /**
      * Sends the request using the accumulated fetch options.
@@ -457,13 +451,23 @@ export interface Wretch<Self = unknown, Chain = unknown, Resolver = undefined, E
             Resolver
 
     /**
-     * Performs a [GET](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/GET) request.
+     * PUT request.
      *
      * ```js
-     * wretch("...").get();
+     * wretch('...').json({...}).put()
      * ```
+     */
+    put(this: Self & Wretch<Self, Chain, Resolver, ErrorType>, url?: string):
+        Resolver extends undefined ?
+            Chain & WretchResponseChain<Self, Chain, Resolver, ErrorType> :
+            Resolver
+
+    /**
+     * GET request.
      *
-     * @category HTTP
+     * ```js
+     * wretch('...').get()
+     * ```
      */
     get(this: Self & Wretch<Self, Chain, Resolver, ErrorType>, url?: string):
         Resolver extends undefined ?
@@ -471,69 +475,11 @@ export interface Wretch<Self = unknown, Chain = unknown, Resolver = undefined, E
             Resolver
 
     /**
-     * Performs a [DELETE](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE) request.
+     * HEAD request.
      *
      * ```js
-     * wretch("...").delete();
+     * wretch('...').head()
      * ```
-     *
-     * @category HTTP
-     */
-    delete(this: Self & Wretch<Self, Chain, Resolver, ErrorType>, url?: string):
-        Resolver extends undefined ?
-            Chain & WretchResponseChain<Self, Chain, Resolver, ErrorType> :
-            Resolver
-
-    /**
-     * Performs a [PUT](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/PUT) request.
-     *
-     * ```js
-     * wretch("...").json({...}).put()
-     * ```
-     *
-     * @category HTTP
-     */
-    put(this: Self & Wretch<Self, Chain, Resolver, ErrorType>, body?: any, url?: string):
-        Resolver extends undefined ?
-            Chain & WretchResponseChain<Self, Chain, Resolver, ErrorType> :
-            Resolver
-
-    /**
-     * Performs a [POST](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/POST) request.
-     *
-     * ```js
-     * wretch("...").json({...}).post()
-     * ```
-     *
-     * @category HTTP
-     */
-    post(this: Self & Wretch<Self, Chain, Resolver, ErrorType>, body?: any, url?: string):
-        Resolver extends undefined ?
-            Chain & WretchResponseChain<Self, Chain, Resolver, ErrorType> :
-            Resolver
-
-    /**
-     * Performs a [PATCH](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/PATCH) request.
-     *
-     * ```js
-     * wretch("...").json({...}).patch()
-     * ```
-     *
-     * @category HTTP
-     */
-    patch(this: Self & Wretch<Self, Chain, Resolver, ErrorType>, body?: any, url?: string):
-        Resolver extends undefined ?
-            Chain & WretchResponseChain<Self, Chain, Resolver, ErrorType> :
-            Resolver
-
-    /**
-     * Performs a [HEAD](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/HEAD) request.
-     *
-     * ```js
-     * wretch("...").head();
-     * ```
-     *
-     * @category HTTP
      */
     head(this: Self & Wretch<Self, Chain, Resolver, ErrorType>, url?: string):
         Resolver extends undefined ?
@@ -541,15 +487,49 @@ export interface Wretch<Self = unknown, Chain = unknown, Resolver = undefined, E
             Resolver
 
     /**
-     * Performs an [OPTIONS](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/OPTIONS) request.
+     * POST request.
      *
      * ```js
-     * wretch("...").opts();
+     * wretch('...').json({...}).post()
      * ```
-     *
-     * @category HTTP
      */
-    opts(this: Self & Wretch<Self, Chain, Resolver, ErrorType>, url?: string):
+    post(this: Self & Wretch<Self, Chain, Resolver, ErrorType>, body?: any, url?: string):
+        Resolver extends undefined ?
+            Chain & WretchResponseChain<Self, Chain, Resolver, ErrorType> :
+            Resolver
+
+    /**
+     * PATCH request.
+     *
+     * ```js
+     * wretch('...').json({...}).patch()
+     * ```
+     */
+    patch(this: Self & Wretch<Self, Chain, Resolver, ErrorType>, body?: any, url?: string):
+        Resolver extends undefined ?
+            Chain & WretchResponseChain<Self, Chain, Resolver, ErrorType> :
+            Resolver
+
+    /**
+     * DELETE request.
+     *
+     * ```js
+     * wretch('...').delete()
+     * ```
+     */
+    delete(this: Self & Wretch<Self, Chain, Resolver, ErrorType>, url?: string):
+        Resolver extends undefined ?
+            Chain & WretchResponseChain<Self, Chain, Resolver, ErrorType> :
+            Resolver
+
+    /**
+     * OPTIONS request.
+     *
+     * ```js
+     * wretch('...').option()
+     * ```
+     */
+    option(this: Self & Wretch<Self, Chain, Resolver, ErrorType>, url?: string):
         Resolver extends undefined ?
             Chain & WretchResponseChain<Self, Chain, Resolver, ErrorType> :
             Resolver
@@ -582,21 +562,14 @@ export interface Wretch<Self = unknown, Chain = unknown, Resolver = undefined, E
  *
  */
 export interface WretchResponseChain<T, Self = unknown, R = undefined, ErrorType = undefined> {
-    /**
-     * @private @internal
-     */
+    /** @private @internal */
     _wretchReq: Wretch<T, Self, R, ErrorType>,
-    /**
-     * @private @internal
-     */
+    /** @private @internal */
     _fetchReq: Promise<WretchResponse>,
-    /**
-     * @private @internal
-     */
-    _sharedState: Record<any, any>,
+    /** @private @internal */
+    _shareState: Record<any, any>,
 
     /**
-     *
      * The handler for the raw fetch Response.
      * Check the [MDN](https://developer.mozilla.org/en-US/docs/Web/API/Response) documentation for more details on the Response class.
      *
@@ -749,7 +722,6 @@ export interface WretchResponseChain<T, Self = unknown, R = undefined, ErrorType
      */
     fetchError: (this: Self & WretchResponseChain<T, Self, R, ErrorType>, cb: WretchErrorCallback<T, Self, R, ErrorType>) => this,
 }
-
 
 /**
  * Fetch Request options with additional properties.

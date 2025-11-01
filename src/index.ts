@@ -32,7 +32,7 @@ export type {
  * @returns A fresh wretch instance
  */
 const factory = (_url = '', _options: WretchOption = {}): Wretch =>
-    ({...core, _url, _option: _options})
+    ({...core, _url, _configure: _options})
 
 factory['default'] = factory
 factory.WretchError = WretchError

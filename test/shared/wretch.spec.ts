@@ -188,7 +188,7 @@ export function createWretchTests(ctx: TestContext): void {
         () => wretch(`${_URL}/json/roundTrip`).content("bad/content").post(jsonObject).json()
       )
       const headerWithCharset = "application/json; charset=utf-16"
-      expect(wretch().content(headerWithCharset).json({})._option.headers["Content-Type"]).toBe(headerWithCharset)
+      expect(wretch().content(headerWithCharset).json({})._configure.headers["Content-Type"]).toBe(headerWithCharset)
     })
 
     it("should perform an url encoded form data round trip", async function () {
@@ -292,8 +292,8 @@ export function createWretchTests(ctx: TestContext): void {
     })
 
     it("should perform OPTIONS and HEAD requests", async function () {
-      const optsRes = await wretch(_URL + "/options").opts().response()
-      const optsRes2 = await wretch(_URL + "/options").opts("").response()
+      const optsRes = await wretch(_URL + "/options").option().response()
+      const optsRes2 = await wretch(_URL + "/options").option("").response()
       expect(optsRes.headers.get("Allow")).toBe("OPTIONS")
       expect(optsRes2.headers.get("Allow")).toBe("OPTIONS")
       const headRes = await wretch(_URL + "/json").head().response()
@@ -306,11 +306,11 @@ export function createWretchTests(ctx: TestContext): void {
       const headers = { "X-HELLO": "WORLD", "X-Y": "Z" }
       let req = wretch().header({ "X-HELLO": "WORLD" })
       req = req.header({ "X-Y": "Z" })
-      expect(req._option.headers).toEqual(headers)
+      expect(req._configure.headers).toEqual(headers)
       req = req.header(null)
-      expect(req._option.headers).toEqual(headers)
+      expect(req._configure.headers).toEqual(headers)
       req = req.header(undefined)
-      expect(req._option.headers).toEqual(headers)
+      expect(req._configure.headers).toEqual(headers)
     })
 
     it("should catch common error codes", async function () {
@@ -357,7 +357,7 @@ export function createWretchTests(ctx: TestContext): void {
 
       check = 0
       await wretch(`${_URL}/444`)
-        .option({ signal: AbortSignal.abort() })
+        .configure({ signal: AbortSignal.abort() })
         .get()
         .notFound(_ => check++)
         .error(444, _ => check++)
@@ -399,7 +399,7 @@ export function createWretchTests(ctx: TestContext): void {
 
       await w.url("/404").get().response(_ => fallback--)
       await w
-        .option({ signal: AbortSignal.abort() })
+        .configure({ signal: AbortSignal.abort() })
         .get()
         .fetchError(_ => fetchError++)
         .response(_ => fallback--)
@@ -444,9 +444,9 @@ export function createWretchTests(ctx: TestContext): void {
       const obj2 = obj1.url(_URL, true)
       expect(obj1["_url"]).toBe("...")
       expect(obj2["_url"]).toBe(_URL)
-      const obj3 = obj1.option({ headers: { "X-test": "test" } })
-      expect(obj3["_option"]).toEqual({ headers: { "X-test": "test" } })
-      expect(obj1["_option"]).toEqual({})
+      const obj3 = obj1.configure({ headers: { "X-test": "test" } })
+      expect(obj3["_configure"]).toEqual({ headers: { "X-test": "test" } })
+      expect(obj1["_configure"]).toEqual({})
       const obj4 = obj2.addon(QueryStringAddon).query({ a: "1!", b: "2" })
       expect(obj4["_url"]).toBe(`${_URL}?a=1%21&b=2`)
       expect(obj2["_url"]).toBe(_URL)
@@ -468,7 +468,7 @@ export function createWretchTests(ctx: TestContext): void {
         .query({ test: "value" })
 
       expect(w["_url"]).toBe(`${_URL}/basicauth?test=value`)
-      expect(w._option.headers["Authorization"]).toBe("Basic d3JldGNoOnLDtmNrcw==")
+      expect(w._configure.headers["Authorization"]).toBe("Basic d3JldGNoOnLDtmNrcw==")
       const res = await w.get().text()
       expect(res).toBe("ok")
     })
@@ -869,8 +869,8 @@ export function createWretchTests(ctx: TestContext): void {
         .defer((w, url, { token }) => w.authorization(token), true)
 
       const result = await w
-        .option({ token: "Basic d3JldGNoOnLDtmNrcw==" })
-        .option({ q: "a" })
+        .configure({ token: "Basic d3JldGNoOnLDtmNrcw==" })
+        .configure({ q: "a" })
         .get("")
         .text()
       expect(result).toBe("ok")
